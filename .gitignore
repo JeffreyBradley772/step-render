@@ -1,0 +1,46 @@
+# Python
+api/venv/
+api/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+api/app/__pycache__/
+api/app/dependencies/__pycache__
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+!.env.example
+!**/.env.example
+
+# Node.js / Next.js
+web/my-app/node_modules/
+web/my-app/.next/
+web/my-app/out/
+web/my-app/.env*.local
+web/my-app/.vercel
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
