@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Enum as SQLEnum
+from sqlalchemy import Column, String, DateTime, Enum as SQLEnum, JSON
 from sqlalchemy.orm import declarative_base
 from datetime import datetime, timezone
 import enum
@@ -19,7 +19,10 @@ class StepFile(Base):
     filename = Column(String, nullable=False)
     file_size = Column(String, nullable=True)  # in bytes
     
-    blob_url = Column(String, nullable=True)  # URL to access the file
+    blob_url = Column(String, nullable=True)  # URL to access the uploaded STEP file
+    render_blob_url = Column(String, nullable=True)  # URL of the rendered glTF/GLB asset
+    metadata_json = Column(JSON, nullable=True)  # component hierarchy / metadata
+    error_message = Column(String, nullable=True)  # potential error message
 
     status = Column(SQLEnum(UploadStatus), default=UploadStatus.UPLOADING, nullable=False)
 

@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from app.schemas import PresignedUrl, UploadRequest
 from app.storage.storage_interface import BlobStorageClient
-from app.dependencies.core import DBSessionDep, get_blob_client
+from app.dependencies.core import DBSessionDep, get_step_file_storage
 from app.models.step import StepFile, UploadStatus
 
 router = APIRouter(
@@ -21,7 +21,7 @@ class UploadFinishedRequest(BaseModel):
 async def get_presigned_upload_url(
     request: UploadRequest,
     database: DBSessionDep,
-    blob_client: BlobStorageClient = Depends(get_blob_client)
+    blob_client: BlobStorageClient = Depends(get_step_file_storage)
 ):
     """Generate a presigned URL for uploading a file to blob storage"""
     object_uuid = str(uuid.uuid4())
@@ -37,7 +37,7 @@ async def get_presigned_upload_url(
     await database.commit()
     
     # return presigned URL for upload
-    presigned_url = blob_client.get_presigned_upload_url(object_uuid, bucket_name="stepfiles")
+    presigned_url = blob_client.get_presigned_upload_url(object_uuid)
     
     return presigned_url
 
@@ -45,7 +45,7 @@ async def get_presigned_upload_url(
 async def upload_finished(
     request: UploadFinishedRequest,
     database: DBSessionDep,
-    blob_client: BlobStorageClient = Depends(get_blob_client)
+    blob_client: BlobStorageClient = Depends(get_step_file_storage)
 ):
     """Mark a file as finished uploading"""
     result = await database.execute(
