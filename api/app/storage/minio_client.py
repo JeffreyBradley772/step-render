@@ -64,3 +64,32 @@ class MinioBlobStorageClient(BlobStorageClient):
         """Delete an object from the blob storage"""
         bucket = bucket_name or self._default_bucket
         self._minio_client.remove_object(bucket_name=bucket, object_name=object_uuid)
+    
+    def download_file(
+        self,
+        object_uuid: str,
+        local_path: str,
+        bucket_name: str | None = None
+    ) -> None:
+        """Download an object from blob storage to a local file"""
+        bucket = bucket_name or self._default_bucket
+        self._minio_client.fget_object(
+            bucket_name=bucket,
+            object_name=object_uuid,
+            file_path=local_path
+        )
+    
+    def get_presigned_download_url(
+        self,
+        object_uuid: str,
+        bucket_name: str | None = None,
+        expires_in: int = 3600
+    ) -> str:
+        """Get a presigned URL for downloading an object"""
+        bucket = bucket_name or self._default_bucket
+        url = self._minio_client.presigned_get_object(
+            bucket_name=bucket,
+            object_name=object_uuid,
+            expires=timedelta(seconds=expires_in),
+        )
+        return url

@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
-import { FileText, Calendar, HardDrive } from "lucide-react";
+import { FileText, Calendar, HardDrive, Loader2, XCircle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { StepFileInfoResponse, stepFileInfoResponseSchema } from "@/app/lib/schemas/step";
 import { getApiUrl } from "@/lib/api-config";
+import { ModelViewerWrapper } from "@/components/model-viewer-wrapper";
+import { StatusBadge } from "@/components/ui/status-badge";
 
 interface FilePageProps {
   params: Promise<{
@@ -14,15 +16,11 @@ export default async function FilePage({ params }: FilePageProps) {
   const { uuid } = await params;
 
   const file: StepFileInfoResponse = await fetch(
-    getApiUrl(`api/v1/files/${uuid}`)
+    getApiUrl(`api/v1/files/${uuid}`),
+    { cache: 'no-store' }
   ).then((res) => res.json());
   console.log(file);
   const parsedFile = stepFileInfoResponseSchema.parse(file);
-
-  if (!parsedFile) {
-    notFound();
-  }
-  // pull file from fast api database then render from blob storage
 
   if (!parsedFile) {
     notFound();
@@ -97,7 +95,73 @@ export default async function FilePage({ params }: FilePageProps) {
         </div>
       </div>
 
-      {/* Random Data Section (can add more here) */}
+      {/* 3D Model Viewer */}
+      <Separator />
+      
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">3D Model Viewer</h2>
+          <StatusBadge status={parsedFile.status} />
+        </div>
+        
+        {parsedFile.status === 'processed' && parsedFile.render_blob_url ? (
+          <div className="rounded-lg border overflow-hidden">
+            <ModelViewerWrapper uuid={parsedFile.uuid} />
+          </div>
+        ) : parsedFile.status === 'processing' ? (
+          <div className="rounded-lg border bg-muted/50 p-12 flex items-center justify-center">
+            <div className="text-center">
+              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+              <p className="text-sm text-muted-foreground">Converting STEP file to 3D web model...</p>
+            </div>
+          </div>
+        ) : parsedFile.status === 'failed' ? (
+          <div className="rounded-lg border border-destructive bg-destructive/10 p-12 flex items-center justify-center">
+            <div className="text-center">
+              <XCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+              <p className="text-sm font-medium text-destructive mb-2">Conversion Failed</p>
+              {parsedFile.error_message && (
+                <p className="text-xs text-muted-foreground">{parsedFile.error_message}</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-lg border bg-muted/50 p-12 flex items-center justify-center">
+            <div className="text-center">
+              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-sm text-muted-foreground">Waiting for file to be uploaded...</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Metadata Section */}
+      {parsedFile.metadata_json && (
+        <>
+          <Separator />
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Model Metadata</h2>
+            <div className="rounded-lg border bg-muted/50 p-4">
+              <div className="grid gap-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Components:</span>
+                  <span className="font-medium">{parsedFile.metadata_json.nodes?.length || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Meshes:</span>
+                  <span className="font-medium">{parsedFile.metadata_json.meshes_count || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Materials:</span>
+                  <span className="font-medium">{parsedFile.metadata_json.materials_count || 0}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Raw Data Section */}
       <Separator />
       
       <div className="space-y-4">
@@ -121,3 +185,4 @@ function formatFileSize(bytes: number): string {
   
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
 }
+

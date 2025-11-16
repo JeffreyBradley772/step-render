@@ -31,3 +31,18 @@ class BlobStorageClient(ABC):
         """Delete an object from the blob storage"""
         pass
     
+    @abstractmethod
+    def download_file(self, object_uuid: str, local_path: str, bucket_name: str | None = None) -> None:
+        """Download an object from blob storage to a local file"""
+        pass
+    
+    @abstractmethod
+    def get_presigned_download_url(
+        self,
+        object_uuid: str,
+        bucket_name: str | None = None,
+        expires_in: int = 3600
+    ) -> str:
+        """Get a presigned URL for downloading an object"""
+        pass
+    
