@@ -4,22 +4,32 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GltfNodeMetadata, GltfMetadata, ComponentHoverInfo } from '@/app/lib/schemas/step';
 
 interface ModelViewerProps {
   uuid: string;
+  metadata?: GltfMetadata | null;
   onMetadataLoad?: (metadata: any) => void;
 }
 
-export function ModelViewer({ uuid, onMetadataLoad }: ModelViewerProps) {
+export function ModelViewer({ uuid, metadata, onMetadataLoad }: ModelViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hoveredComponent, setHoveredComponent] = useState<ComponentHoverInfo | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const raycasterRef = useRef(new THREE.Raycaster());
+  const pointerRef = useRef(new THREE.Vector2());
+  const highlightedMeshRef = useRef<THREE.Mesh | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
+
+    setHoveredComponent(null);
+    highlightedMeshRef.current = null;
 
     // Setup scene
     const scene = new THREE.Scene();
@@ -35,11 +45,19 @@ export function ModelViewer({ uuid, onMetadataLoad }: ModelViewerProps) {
     );
     camera.position.set(5, 5, 5);
     camera.lookAt(0, 0, 0);
+    cameraRef.current = camera;
 
     // Setup renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
+    
+    // Clear any existing canvases before appending new one
+    // Here, this was causing overlapping canvases to render in strict mode
+    while (containerRef.current.firstChild) {
+      containerRef.current.removeChild(containerRef.current.firstChild);
+    }
+    
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -61,6 +79,71 @@ export function ModelViewer({ uuid, onMetadataLoad }: ModelViewerProps) {
     const gridHelper = new THREE.GridHelper(10, 10);
     scene.add(gridHelper);
 
+    const highlightMaterialTemplate = new THREE.MeshStandardMaterial({
+      color: new THREE.Color('#ffb347'),
+      emissive: new THREE.Color('#ff9800'),
+      metalness: 0.1,
+      roughness: 0.4,
+    });
+
+    const disposeMaterial = (material: THREE.Material | THREE.Material[]) => {
+      if (Array.isArray(material)) {
+        material.forEach((mat) => mat.dispose());
+      } else {
+        material.dispose();
+      }
+    };
+
+    const revertHighlight = (mesh: THREE.Mesh) => {
+      if (!mesh.userData.originalMaterial) return;
+      disposeMaterial(mesh.material);
+      mesh.material = mesh.userData.originalMaterial;
+      delete mesh.userData.originalMaterial;
+    };
+
+    const defaultComponentInfo = (mesh: THREE.Mesh): ComponentHoverInfo => ({
+      uuid: mesh.uuid,
+      name: mesh.name || 'Unnamed component',
+      nodeId: null,
+      meshIndex: null,
+      childCount: mesh.children.length,
+    });
+
+    const applyHighlight = (mesh: THREE.Mesh) => {
+      if (highlightedMeshRef.current === mesh) {
+        const metadataPayload: ComponentHoverInfo = mesh.userData.metadata || defaultComponentInfo(mesh);
+        setHoveredComponent(metadataPayload);
+        return;
+      }
+
+      if (highlightedMeshRef.current) {
+        revertHighlight(highlightedMeshRef.current);
+      }
+
+      mesh.userData.originalMaterial = mesh.material;
+
+      if (Array.isArray(mesh.material)) {
+        mesh.material = mesh.material.map(() => highlightMaterialTemplate.clone());
+      } else {
+        mesh.material = highlightMaterialTemplate.clone();
+      }
+
+      highlightedMeshRef.current = mesh;
+
+      const metadataPayload: ComponentHoverInfo = mesh.userData.metadata || defaultComponentInfo(mesh);
+      setHoveredComponent(metadataPayload);
+    };
+
+    const clearHighlight = () => {
+      if (!highlightedMeshRef.current) {
+        setHoveredComponent(null);
+        return;
+      }
+      revertHighlight(highlightedMeshRef.current);
+      highlightedMeshRef.current = null;
+      setHoveredComponent(null);
+    };
+
     // Animation loop
     function animate() {
       requestAnimationFrame(animate);
@@ -78,11 +161,38 @@ export function ModelViewer({ uuid, onMetadataLoad }: ModelViewerProps) {
     };
     window.addEventListener('resize', handleResize);
 
+    const handlePointerMove = (event: PointerEvent) => {
+      console.log('Pointer move', event);
+      if (!cameraRef.current || !sceneRef.current) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointerRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointerRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycasterRef.current.setFromCamera(pointerRef.current, cameraRef.current);
+      const intersects = raycasterRef.current.intersectObjects(sceneRef.current.children, true);
+      const meshIntersection = intersects.find((intersection) => intersection.object instanceof THREE.Mesh);
+
+      if (meshIntersection) {
+        applyHighlight(meshIntersection.object as THREE.Mesh);
+      } else {
+        clearHighlight();
+      }
+    };
+
+    const handlePointerLeave = () => {
+      clearHighlight();
+    };
+
+    renderer.domElement.addEventListener('pointermove', handlePointerMove);
+    renderer.domElement.addEventListener('pointerleave', handlePointerLeave);
+
     // Load GLB model
     const loadModel = async () => {
       try {
         setLoading(true);
         setError(null);
+        setHoveredComponent(null);
+        highlightedMeshRef.current = null;
 
         console.log('Fetching download URL for UUID:', uuid);
 
@@ -114,6 +224,15 @@ export function ModelViewer({ uuid, onMetadataLoad }: ModelViewerProps) {
             gltf.scene.name = 'model';
             scene.add(gltf.scene);
 
+            const metadataByName = new Map<string, GltfNodeMetadata>();
+            metadata?.nodes?.forEach((node) => {
+              if (node.name) {
+                metadataByName.set(node.name, node);
+              } else if (typeof node.id === 'number') {
+                metadataByName.set(`node_${node.id}`, node);
+              }
+            });
+
             // Center and scale model
             const box = new THREE.Box3().setFromObject(gltf.scene);
             const center = box.getCenter(new THREE.Vector3());
@@ -130,6 +249,20 @@ export function ModelViewer({ uuid, onMetadataLoad }: ModelViewerProps) {
             camera.position.set(5, 5, 5);
             controls.target.set(0, 0, 0);
             controls.update();
+
+            gltf.scene.traverse((child) => {
+              if (child instanceof THREE.Mesh) {
+                const nodeMeta = metadataByName.get(child.name || '') || null;
+                const componentInfo: ComponentHoverInfo = {
+                  uuid: child.uuid,
+                  name: child.name || nodeMeta?.name || 'Unnamed component',
+                  nodeId: nodeMeta?.id ?? null,
+                  meshIndex: nodeMeta?.mesh ?? null,
+                  childCount: nodeMeta?.children?.length ?? child.children.length,
+                };
+                child.userData.metadata = componentInfo;
+              }
+            });
 
             console.log('Model positioned, loading complete');
             setLoading(false);
@@ -171,16 +304,48 @@ export function ModelViewer({ uuid, onMetadataLoad }: ModelViewerProps) {
     // Cleanup
     return () => {
       window.removeEventListener('resize', handleResize);
+      renderer.domElement.removeEventListener('pointermove', handlePointerMove);
+      renderer.domElement.removeEventListener('pointerleave', handlePointerLeave);
+      clearHighlight();
+      highlightMaterialTemplate.dispose();
       if (containerRef.current && renderer.domElement) {
         containerRef.current.removeChild(renderer.domElement);
       }
       renderer.dispose();
     };
-  }, [uuid, onMetadataLoad]);
+  }, [uuid, onMetadataLoad, metadata]);
 
   return (
     <div className="relative w-full min-h-[500px] h-[500px]">
       <div ref={containerRef} className="w-full h-full absolute inset-0" />
+      <div className="pointer-events-none absolute top-4 right-4 w-72 rounded-lg border bg-background/90 backdrop-blur-sm shadow">
+        <div className="p-4 space-y-2">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Component Details</p>
+          {hoveredComponent ? (
+            <div className="space-y-1 text-sm">
+              <p className="text-base font-semibold text-foreground">{hoveredComponent.name}</p>
+              {hoveredComponent.nodeId !== null && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Node ID</span>
+                  <span className="text-foreground">{hoveredComponent.nodeId}</span>
+                </div>
+              )}
+              {hoveredComponent.meshIndex !== null && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Mesh Index</span>
+                  <span className="text-foreground">{hoveredComponent.meshIndex}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-muted-foreground">
+                <span>Child Nodes</span>
+                <span className="text-foreground">{hoveredComponent.childCount}</span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Hover a component to see more.</p>
+          )}
+        </div>
+      </div>
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-muted/50">
           <div className="text-center">

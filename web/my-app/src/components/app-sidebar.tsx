@@ -29,7 +29,7 @@ export async function AppSidebar() {
             <SidebarMenuButton asChild size="lg">
               <Link href="/">
                 <Home className="h-5 w-5" />
-                <span className="font-semibold">File Manager</span>
+                <span className="font-semibold">Home</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

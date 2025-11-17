@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FileText, Trash } from "lucide-react";
 import { SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
 import { StepFileInfoResponse } from "@/app/lib/schemas/step";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useState } from "react";
 import { getApiUrl } from "@/lib/api-config";
 
@@ -14,6 +14,7 @@ interface FileListItemProps {
 
 export function FileListItem({ file }: FileListItemProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async (e: React.MouseEvent) => {
@@ -29,6 +30,10 @@ export function FileListItem({ file }: FileListItemProps) {
       });
       
       if (response.ok) {
+        // if we are on the file page, redirect to home
+        if (pathname === `/file/${file.uuid}`) {
+          router.replace("/");
+        }
         router.refresh();
       } else {
         alert("Failed to delete file");

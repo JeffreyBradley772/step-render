@@ -41,3 +41,5 @@ npm install
 cd web/my-app
 npm run dev
 ```
+
+### Example Step Files Available

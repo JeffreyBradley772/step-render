@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { Loader2 } from 'lucide-react';
+import { GltfMetadata } from '@/app/lib/schemas/step';
 
 const ModelViewer = dynamic(
   () => import('@/components/model-viewer').then((mod) => ({ default: mod.ModelViewer })),
@@ -17,8 +18,9 @@ const ModelViewer = dynamic(
 
 interface ModelViewerWrapperProps {
   uuid: string;
+  metadata?: GltfMetadata | null;
 }
 
-export function ModelViewerWrapper({ uuid }: ModelViewerWrapperProps) {
-  return <ModelViewer uuid={uuid} />;
+export function ModelViewerWrapper({ uuid, metadata }: ModelViewerWrapperProps) {
+  return <ModelViewer uuid={uuid} metadata={metadata} />;
 }

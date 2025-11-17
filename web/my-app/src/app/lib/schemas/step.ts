@@ -11,6 +11,28 @@ export const stepUploadFinishedSchema = z.object({
     object_uuid: z.string(),
 });
 
+// GLTF metadata schemas
+export const gltfNodeMetadataSchema = z.object({
+    id: z.number().optional(),
+    name: z.string().optional(),
+    mesh: z.number().optional(),
+    children: z.array(z.number()).optional(),
+});
+
+export const gltfMetadataSchema = z.object({
+    nodes: z.array(gltfNodeMetadataSchema).optional(),
+    meshes_count: z.number().optional(),
+    materials_count: z.number().optional(),
+});
+
+export const componentHoverInfoSchema = z.object({
+    uuid: z.string(),
+    name: z.string(),
+    nodeId: z.number().nullable(),
+    meshIndex: z.number().nullable(),
+    childCount: z.number(),
+});
+
 // file info response schema
 export const stepFileInfoResponseSchema = z.object({
     uuid: z.string(),
@@ -18,7 +40,7 @@ export const stepFileInfoResponseSchema = z.object({
     file_size: z.number().nullable(),
     blob_url: z.string().nullable(),
     render_blob_url: z.string().nullable(),
-    metadata_json: z.any().nullable(),
+    metadata_json: gltfMetadataSchema.nullable(),
     error_message: z.string().nullable(),
     status: z.string(),
     uploaded_at: z.string(),
@@ -31,6 +53,11 @@ export const stepFileInfoResponseArraySchema = z.array(stepFileInfoResponseSchem
 export type StepUpload = z.infer<typeof stepUploadSchema>;
 export type StepUploadFinished = z.infer<typeof stepUploadFinishedSchema>;
 export type StepFileInfoResponse = z.infer<typeof stepFileInfoResponseSchema>;
+
+// GLTF metadata types
+export type GltfNodeMetadata = z.infer<typeof gltfNodeMetadataSchema>;
+export type GltfMetadata = z.infer<typeof gltfMetadataSchema>;
+export type ComponentHoverInfo = z.infer<typeof componentHoverInfoSchema>;
 
 // presigned URL schema
 export const presignedUrlSchema = z.object({

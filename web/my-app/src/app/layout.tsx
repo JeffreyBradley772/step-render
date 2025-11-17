@@ -36,7 +36,7 @@ export default function RootLayout({
             <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
               <SidebarTrigger />
               <Separator orientation="vertical" className="h-6" />
-              <span className="font-semibold">Step Renderer</span>
+              <span className="font-semibold">STEP Renderer</span>
             </header>
             <div className="flex flex-1 flex-col gap-4 p-4">
               {children}

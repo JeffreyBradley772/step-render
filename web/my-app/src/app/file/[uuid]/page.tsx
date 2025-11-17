@@ -34,9 +34,6 @@ export default async function FilePage({ params }: FilePageProps) {
           <FileText className="h-8 w-8 text-primary" />
           <h1 className="text-3xl font-bold tracking-tight">{file.filename}</h1>
         </div>
-        <p className="text-muted-foreground">
-          File details and information
-        </p>
       </div>
 
       <Separator />
@@ -106,7 +103,7 @@ export default async function FilePage({ params }: FilePageProps) {
         
         {parsedFile.status === 'processed' && parsedFile.render_blob_url ? (
           <div className="rounded-lg border overflow-hidden">
-            <ModelViewerWrapper uuid={parsedFile.uuid} />
+            <ModelViewerWrapper uuid={parsedFile.uuid} metadata={parsedFile.metadata_json} />
           </div>
         ) : parsedFile.status === 'processing' ? (
           <div className="rounded-lg border bg-muted/50 p-12 flex items-center justify-center">
