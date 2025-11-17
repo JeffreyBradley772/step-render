@@ -42,4 +42,6 @@ cd web/my-app
 npm run dev
 ```
 
-### Example Step Files Available
+### Example STEP Files Available
+
+![STEP Renderer Screenshot](screenshot.png)
