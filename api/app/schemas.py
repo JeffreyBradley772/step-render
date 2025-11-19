@@ -24,3 +24,13 @@ class StepFileResponse(BaseModel):
 class RenderDownloadUrlResponse(BaseModel):
     download_url: str
     expires_in: int
+
+class UploadFinishedResponse(BaseModel):
+    status: str
+    uuid: str
+    file_status: str
+
+class DeleteFileResponse(BaseModel):
+    status: str
+    message: str
+    uuid: str

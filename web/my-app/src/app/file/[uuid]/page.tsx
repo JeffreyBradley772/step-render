@@ -59,7 +59,7 @@ export default async function FilePage({ params }: FilePageProps) {
               <div>
                 <div className="text-sm font-medium">Uploaded</div>
                 <div className="text-sm text-muted-foreground">
-                  {new Date(parsedFile.uploaded_at).toLocaleString()}
+                  {new Date(parsedFile.uploaded_at ?? '').toLocaleString()}
                 </div>
               </div>
             </div>

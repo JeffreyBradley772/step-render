@@ -43,7 +43,7 @@ export const stepFileInfoResponseSchema = z.object({
     metadata_json: gltfMetadataSchema.nullable(),
     error_message: z.string().nullable(),
     status: z.string(),
-    uploaded_at: z.string(),
+    uploaded_at: z.string().nullable(),
     processed_at: z.string().nullable(),
 })
 
@@ -67,3 +67,28 @@ export const presignedUrlSchema = z.object({
 
 export type PresignedUrl = z.infer<typeof presignedUrlSchema>;
 
+// Dowload Url schema
+export const renderDownloadUrlSchema = z.object({
+    download_url: z.string(),
+    expires_in: z.number(),
+});
+
+export type RenderDownloadUrl = z.infer<typeof renderDownloadUrlSchema>;
+
+// Step finished response
+export const stepUploadFinishedResponseSchema = z.object({
+    status: z.string(),
+    uuid: z.string(),
+    file_status: z.string(),
+});
+
+export type StepUploadFinishedResponse = z.infer<typeof stepUploadFinishedResponseSchema>;
+
+// delete file response
+export const deleteFileResponseSchema = z.object({
+    status: z.string(),
+    message: z.string(),
+    uuid: z.string(),
+});
+
+export type DeleteFileResponse = z.infer<typeof deleteFileResponseSchema>;

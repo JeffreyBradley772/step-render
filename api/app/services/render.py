@@ -7,14 +7,19 @@ import os
 import tempfile
 import json
 import logging
+import uuid
 from typing import Dict, Any, Optional
 from pathlib import Path
+from datetime import datetime, timezone
 import pygltflib
 import cascadio
 import requests
+from sqlalchemy import select
 
 from app.dependencies.core import get_step_file_storage, get_render_storage
 from app.storage.storage_interface import BlobStorageClient
+from app.database import sessionmanager
+from app.models.step import StepFile, UploadStatus
 
 logger = logging.getLogger(__name__)
 
@@ -119,3 +124,47 @@ async def render_step_file(step_file_uuid: str, output_uuid: str) -> tuple[str, 
         except Exception as e:
             logger.error(f"Error rendering STEP file {step_file_uuid}: {e}")
             raise
+
+
+async def process_render_task(file_uuid: str):
+    """Background task to render STEP file to GLB"""
+    async with sessionmanager.session() as db:
+        try:
+            # Update status to PROCESSING
+            result = await db.execute(
+                select(StepFile).where(StepFile.uuid == file_uuid)
+            )
+            step_file = result.scalar_one_or_none()
+            if not step_file:
+                logger.error(f"File {file_uuid} not found for rendering")
+                return
+            
+            step_file.status = UploadStatus.PROCESSING
+            await db.commit()
+            
+            # do rendering
+            render_uuid = str(uuid.uuid4())
+            logger.info(f"Starting render for {file_uuid} -> {render_uuid}")
+            
+            rendered_url, metadata = await render_step_file(file_uuid, render_uuid)
+            
+            # update database row
+            step_file.status = UploadStatus.PROCESSED
+            step_file.render_blob_url = rendered_url
+            step_file.metadata_json = metadata
+            step_file.processed_at = datetime.now(timezone.utc)
+            await db.commit()
+            
+            logger.info(f"Finished rendering {file_uuid}")
+            
+        except Exception as e:
+            logger.error(f"Error rendering file {file_uuid}: {e}")
+            # set status to FAILED
+            result = await db.execute(
+                select(StepFile).where(StepFile.uuid == file_uuid)
+            )
+            step_file = result.scalar_one_or_none()
+            if step_file:
+                step_file.status = UploadStatus.FAILED
+                step_file.error_message = str(e)
+                await db.commit()

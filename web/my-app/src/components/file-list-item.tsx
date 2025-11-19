@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FileText, Trash } from "lucide-react";
 import { SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { StepFileInfoResponse } from "@/app/lib/schemas/step";
+import { deleteFileResponseSchema, StepFileInfoResponse } from "@/app/lib/schemas/step";
 import { useRouter, usePathname } from "next/navigation";
 import { useState } from "react";
 import { getApiUrl } from "@/lib/api-config";
@@ -29,14 +29,16 @@ export function FileListItem({ file }: FileListItemProps) {
         method: "DELETE",
       });
       
-      if (response.ok) {
+      const data = deleteFileResponseSchema.parse(await response.json());
+      
+      if (data.status === "success") {
         // if we are on the file page, redirect to home
         if (pathname === `/file/${file.uuid}`) {
           router.replace("/");
         }
         router.refresh();
       } else {
-        alert("Failed to delete file");
+        alert(data.message);
       }
     } catch (error) {
       console.error("Delete error:", error);
@@ -55,7 +57,7 @@ export function FileListItem({ file }: FileListItemProps) {
             <div className="flex flex-col gap-0.5 flex-1 min-w-0">
               <span className="truncate">{file.filename}</span>
               <span className="text-xs text-muted-foreground">
-                {new Date(file.uploaded_at).toLocaleDateString()}
+                {file.uploaded_at ? new Date(file.uploaded_at).toLocaleDateString() : ""}
               </span>
             </div>
           </Link>

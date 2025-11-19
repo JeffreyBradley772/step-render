@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { GltfNodeMetadata, GltfMetadata, ComponentHoverInfo } from '@/app/lib/schemas/step';
+import { GltfNodeMetadata, GltfMetadata, ComponentHoverInfo, renderDownloadUrlSchema } from '@/app/lib/schemas/step';
 
 interface ModelViewerProps {
   uuid: string;
@@ -203,7 +203,7 @@ export function ModelViewer({ uuid, metadata, onMetadataLoad }: ModelViewerProps
           console.error('Failed to fetch download URL:', response.status, errorText);
           throw new Error(`Failed to fetch download URL: ${response.status}`);
         }
-        const data = await response.json();
+        const data = renderDownloadUrlSchema.parse(await response.json());
         console.log('Download URL:', data.download_url);
 
         // Load the GLB model

@@ -1,11 +1,9 @@
 
 from fastapi import APIRouter, HTTPException
-from app.schemas import StepFileResponse, RenderDownloadUrlResponse
+from app.schemas import StepFileResponse, RenderDownloadUrlResponse, DeleteFileResponse
 from app.models.step import StepFile
-from app.dependencies.core import DBSessionDep, get_render_storage
+from app.dependencies.core import DBSessionDep, RenderBlobClient, StepFileBlobClient
 from sqlalchemy import select
-from app.dependencies.core import get_blob_client
-from pydantic import BaseModel
 
 router = APIRouter(
     prefix="/files",
@@ -54,7 +52,11 @@ async def get_file(uuid: str, db: DBSessionDep):
     )
 
 @router.get("/{uuid}/render-download-url", response_model=RenderDownloadUrlResponse)
-async def get_render_download_url(uuid: str, db: DBSessionDep):
+async def get_render_download_url(
+    uuid: str,
+    db: DBSessionDep,
+    render_storage: RenderBlobClient,
+):
     """Get a presigned download URL for the rendered GLB file"""
     result = await db.execute(select(StepFile).where(StepFile.uuid == uuid))
     file = result.scalar_one_or_none()
@@ -68,27 +70,32 @@ async def get_render_download_url(uuid: str, db: DBSessionDep):
     # example: http://localhost:9000/renders/{render_uuid}
     render_uuid = file.render_blob_url.split('/')[-1]
     
-    render_storage = get_render_storage()
     download_url = render_storage.get_presigned_download_url(render_uuid, expires_in=3600)
     
     return RenderDownloadUrlResponse(download_url=download_url, expires_in=3600)
 
-@router.delete("/{uuid}")
-async def delete_file(uuid: str, db: DBSessionDep):
-    result = await db.execute(select(StepFile).where(StepFile.uuid == uuid))
-    file = result.scalar_one_or_none()
-    if not file:
-        raise HTTPException(status_code=404, detail="File not found")
-    
-    await db.delete(file)
-    await db.commit()
+@router.delete("/{uuid}", response_model=DeleteFileResponse)
+async def delete_file(
+    uuid: str,
+    db: DBSessionDep,
+    step_file_storage: StepFileBlobClient,
+    render_storage: RenderBlobClient,
+    ):
+    try:
+        result = await db.execute(select(StepFile).where(StepFile.uuid == uuid))
+        file = result.scalar_one_or_none()
+        if not file:
+            raise HTTPException(status_code=404, detail="File not found")
 
-    get_blob_client().delete_file(file.uuid)
-    
-    # delete rendered GLB file too if it exists
-    if file.render_blob_url:
-        render_uuid = file.render_blob_url.split('/')[-1]
-        render_storage = get_render_storage()
-        render_storage.delete_file(render_uuid)
-    
-    return {"message": "File deleted successfully"}
+        step_file_storage.delete_file(file.uuid)
+        # delete rendered GLB file too if it exists
+        if file.render_blob_url:
+            render_uuid = file.render_blob_url.split('/')[-1]
+            render_storage.delete_file(render_uuid)
+
+        await db.delete(file)
+        await db.commit()
+        
+        return DeleteFileResponse(status="success", message="File deleted successfully", uuid=uuid)
+    except Exception as e:
+        return DeleteFileResponse(status="error", message=str(e), uuid=uuid)

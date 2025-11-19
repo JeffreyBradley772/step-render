@@ -1,20 +1,15 @@
 from typing import Annotated
 
 from app.database import get_db_session
+
 from app.config import get_settings
 from app.storage.storage_interface import BlobStorageClient
 from app.storage.minio_client import MinioBlobStorageClient
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-DBSessionDep = Annotated[AsyncSession, Depends(get_db_session)]
-
 _step_blob_client: BlobStorageClient | None = None
 _render_blob_client: BlobStorageClient | None = None
-
-def get_blob_client() -> BlobStorageClient:
-    """Inject blob storage client, defaults to STEP bucket"""
-    return get_step_file_storage()
 
 def get_step_file_storage() -> BlobStorageClient:
     """Get storage client for STEP files"""
@@ -41,3 +36,7 @@ def get_render_storage() -> BlobStorageClient:
             default_bucket=settings.minio_render_bucket_name,
         )
     return _render_blob_client
+
+DBSessionDep = Annotated[AsyncSession, Depends(get_db_session)]
+StepFileBlobClient = Annotated[BlobStorageClient, Depends(get_step_file_storage)]
+RenderBlobClient = Annotated[BlobStorageClient, Depends(get_render_storage)]

@@ -3,16 +3,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import health, upload, files
 from app.database import sessionmanager
-from app.dependencies.core import get_blob_client
 
 # constants
 PREFIX = "/api/v1"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # initialize blob storage on startup
-    get_blob_client()
-    
     # create database tables
     await sessionmanager.create_all()
     

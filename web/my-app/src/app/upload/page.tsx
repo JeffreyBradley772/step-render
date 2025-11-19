@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { StepUpload, PresignedUrl } from '@/app/lib/schemas/step';
+import { StepUpload, PresignedUrl, presignedUrlSchema, stepUploadFinishedResponseSchema, StepUploadFinishedResponse } from '@/app/lib/schemas/step';
 import { useRouter } from 'next/navigation';
 import { getApiUrl } from '@/lib/api-config';
 
@@ -55,7 +55,7 @@ export default function UploadPage() {
         throw new Error('Failed to get upload URL');
       }
 
-      const presignedData: PresignedUrl = await response.json();
+      const presignedData: PresignedUrl = presignedUrlSchema.parse(await response.json());
 
       // upload file
       const uploadResponse = await fetch(presignedData.url, {
@@ -84,7 +84,9 @@ export default function UploadPage() {
         throw new Error('Failed to confirm upload');
       }
 
-      setUploadedFileId(presignedData.object_uuid);
+      const finishData: StepUploadFinishedResponse = stepUploadFinishedResponseSchema.parse(await finishResponse.json());
+
+      setUploadedFileId(finishData.uuid);
       setFile(null);
       router.refresh();
     } catch (err) {
