@@ -1,9 +1,11 @@
-from sqlalchemy import Column, String, DateTime, Enum as SQLEnum, JSON
-from sqlalchemy.orm import declarative_base
+from sqlalchemy import String, JSON, DateTime
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from datetime import datetime, timezone
+from typing import Optional
 import enum
 
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
 
 class UploadStatus(str, enum.Enum):
     UPLOADING = "uploading"
@@ -12,23 +14,25 @@ class UploadStatus(str, enum.Enum):
     PROCESSED = "processed"
     FAILED = "failed"
 
+
 class StepFile(Base):
     __tablename__ = "step_files"
-    uuid = Column(String(36), primary_key=True, index=True)
     
-    filename = Column(String, nullable=False)
-    file_size = Column(String, nullable=True)  # in bytes
+    uuid: Mapped[str] = mapped_column(String(36), primary_key=True, index=True)
     
-    blob_url = Column(String, nullable=True)  # URL to access the uploaded STEP file
-    render_blob_url = Column(String, nullable=True)  # URL of the rendered glTF/GLB asset
-    metadata_json = Column(JSON, nullable=True)  # component hierarchy / metadata
-    error_message = Column(String, nullable=True)  # potential error message
+    filename: Mapped[str]
+    file_size: Mapped[Optional[str]]  # in bytes
+    
+    blob_url: Mapped[Optional[str]]  # URL to access the uploaded STEP file
+    render_blob_url: Mapped[Optional[str]]  # URL of the rendered glTF/GLB asset
+    metadata_json: Mapped[Optional[dict]] = mapped_column(JSON)  # component hierarchy / metadata
+    error_message: Mapped[Optional[str]]  # potential error message
 
-    status = Column(SQLEnum(UploadStatus), default=UploadStatus.UPLOADING, nullable=False)
+    status: Mapped[UploadStatus] = mapped_column(default=UploadStatus.UPLOADING)
 
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    uploaded_at = Column(DateTime(timezone=True), nullable=True)  # upload completed
-    processed_at = Column(DateTime(timezone=True), nullable=True)  # processing completed
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    uploaded_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))  # upload completed
+    processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))  # processing completed
     
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<StepFile(uuid={self.uuid}, filename={self.filename}, status={self.status})>"
