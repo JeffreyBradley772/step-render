@@ -76,7 +76,8 @@ export function ModelViewer({ uuid, metadata, onMetadataLoad }: ModelViewerProps
     scene.add(directionalLight);
 
     // Add grid helper
-    const gridHelper = new THREE.GridHelper(10, 10);
+    const gridHelper = new THREE.GridHelper(5, 5);
+    gridHelper.position.set(0, 0, 0);
     scene.add(gridHelper);
 
     const highlightMaterialTemplate = new THREE.MeshStandardMaterial({

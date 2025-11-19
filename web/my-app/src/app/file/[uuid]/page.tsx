@@ -19,7 +19,6 @@ export default async function FilePage({ params }: FilePageProps) {
     getApiUrl(`api/v1/files/${uuid}`),
     { cache: 'no-store' }
   ).then((res) => res.json());
-  console.log(file);
   const parsedFile = stepFileInfoResponseSchema.parse(file);
 
   if (!parsedFile) {

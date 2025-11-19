@@ -142,11 +142,10 @@ async def process_render_task(file_uuid: str):
             step_file.status = UploadStatus.PROCESSING
             await db.commit()
             
-            # do rendering
-            render_uuid = str(uuid.uuid4())
-            logger.info(f"Starting render for {file_uuid} -> {render_uuid}")
+            # do rendering - use same UUID as step file for simplicity
+            logger.info(f"Starting render for {file_uuid}")
             
-            rendered_url, metadata = await render_step_file(file_uuid, render_uuid)
+            rendered_url, metadata = await render_step_file(file_uuid, file_uuid)
             
             # update database row
             step_file.status = UploadStatus.PROCESSED

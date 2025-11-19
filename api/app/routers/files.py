@@ -66,11 +66,8 @@ async def get_render_download_url(
     if not file.render_blob_url:
         raise HTTPException(status_code=404, detail="Rendered file not available yet")
     
-    # get render UUID from the render_blob_url
-    # example: http://localhost:9000/renders/{render_uuid}
-    render_uuid = file.render_blob_url.split('/')[-1]
-    
-    download_url = render_storage.get_presigned_download_url(render_uuid, expires_in=3600)
+    # Use step file UUID directly (render file uses same UUID)
+    download_url = render_storage.get_presigned_download_url(uuid, expires_in=3600)
     
     return RenderDownloadUrlResponse(download_url=download_url, expires_in=3600)
 
@@ -89,9 +86,9 @@ async def delete_file(
 
         step_file_storage.delete_file(file.uuid)
         # delete rendered GLB file too if it exists
+
         if file.render_blob_url:
-            render_uuid = file.render_blob_url.split('/')[-1]
-            render_storage.delete_file(render_uuid)
+            render_storage.delete_file(file.uuid)
 
         await db.delete(file)
         await db.commit()
