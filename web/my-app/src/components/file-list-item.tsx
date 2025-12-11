@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { FileText, Trash } from "lucide-react";
 import { SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { deleteFileResponseSchema, StepFileInfoResponse } from "@/app/lib/schemas/step";
+import { DeleteFileResponse, deleteFileResponseSchema, StepFileInfoResponse } from "@/app/lib/schemas/step";
 import { useRouter, usePathname } from "next/navigation";
 import { useState } from "react";
 import { getApiUrl } from "@/lib/api-config";
+import { fetchAndValidate } from "@/lib/utils";
 
 interface FileListItemProps {
   file: StepFileInfoResponse;
@@ -25,11 +26,15 @@ export function FileListItem({ file }: FileListItemProps) {
     
     setIsDeleting(true);
     try {
-      const response = await fetch(getApiUrl(`api/v1/files/${file.uuid}`), {
+      const response = await fetchAndValidate(getApiUrl(`api/v1/files/${file.uuid}`), deleteFileResponseSchema, {
         method: "DELETE",
       });
       
-      const data = deleteFileResponseSchema.parse(await response.json());
+      if (!response.success) {
+        throw new Error(response.error);
+      }
+      
+      const data: DeleteFileResponse = response.data;
       
       if (data.status === "success") {
         // if we are on the file page, redirect to home

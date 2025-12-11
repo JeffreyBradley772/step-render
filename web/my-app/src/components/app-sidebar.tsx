@@ -14,13 +14,20 @@ import {
 } from "@/components/ui/sidebar";
 import { stepFileInfoResponseArraySchema } from "@/app/lib/schemas/step";
 import { FileListItem } from "@/components/file-list-item";
+import { fetchAndValidate } from "@/lib/utils";
 import { getApiUrl } from "@/lib/api-config";
 
 export async function AppSidebar() {
 
-  const filesData = await fetch(getApiUrl("api/v1/files")).then((res) => res.json());
-  const files = stepFileInfoResponseArraySchema.parse(filesData);
-  
+  const fileFetchResult = await fetchAndValidate(getApiUrl("/api/v1/files"), stepFileInfoResponseArraySchema);
+
+  if (!fileFetchResult.success) {
+    console.error(fileFetchResult.error);
+    return null;
+  }
+
+  const files = fileFetchResult.data;
+
   return (
     <Sidebar>
       <SidebarHeader>

@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { GltfNodeMetadata, GltfMetadata, ComponentHoverInfo, renderDownloadUrlSchema } from '@/app/lib/schemas/step';
+import { GltfNodeMetadata, GltfMetadata, ComponentHoverInfo, renderDownloadUrlSchema, RenderDownloadUrl } from '@/app/lib/schemas/step';
+import { getApiUrl } from '@/lib/api-config';
+import { fetchAndValidate } from '@/lib/utils';
 
 interface ModelViewerProps {
   uuid: string;
@@ -198,13 +200,12 @@ export function ModelViewer({ uuid, metadata, onMetadataLoad }: ModelViewerProps
         console.log('Fetching download URL for UUID:', uuid);
 
         // Fetch download URL from API
-        const response = await fetch(`http://localhost:8000/api/v1/files/${uuid}/render-download-url`);
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Failed to fetch download URL:', response.status, errorText);
-          throw new Error(`Failed to fetch download URL: ${response.status}`);
+        const response = await fetchAndValidate(getApiUrl(`/api/v1/files/${uuid}/render-download-url`), renderDownloadUrlSchema);
+        if (!response.success) {
+          console.error('Failed to fetch download URL:', response.error);
+          throw new Error(`Failed to fetch download URL: ${response.error}`);
         }
-        const data = renderDownloadUrlSchema.parse(await response.json());
+        const data: RenderDownloadUrl = response.data;
         console.log('Download URL:', data.download_url);
 
         // Load the GLB model

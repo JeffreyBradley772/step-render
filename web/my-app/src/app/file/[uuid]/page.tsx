@@ -5,6 +5,7 @@ import { StepFileInfoResponse, stepFileInfoResponseSchema } from "@/app/lib/sche
 import { getApiUrl } from "@/lib/api-config";
 import { ModelViewerWrapper } from "@/components/model-viewer-wrapper";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { fetchAndValidate } from "@/lib/utils";
 
 interface FilePageProps {
   params: Promise<{
@@ -15,15 +16,17 @@ interface FilePageProps {
 export default async function FilePage({ params }: FilePageProps) {
   const { uuid } = await params;
 
-  const file: StepFileInfoResponse = await fetch(
+  const result = await fetchAndValidate(
     getApiUrl(`api/v1/files/${uuid}`),
+    stepFileInfoResponseSchema,
     { cache: 'no-store' }
-  ).then((res) => res.json());
-  const parsedFile = stepFileInfoResponseSchema.parse(file);
+  );
 
-  if (!parsedFile) {
+  if (!result.success) {
     notFound();
   }
+
+  const file: StepFileInfoResponse = result.data;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -48,7 +51,7 @@ export default async function FilePage({ params }: FilePageProps) {
               <div>
                 <div className="text-sm font-medium">Filename</div>
                 <div className="text-sm text-muted-foreground break-all">
-                  {parsedFile.filename}
+                  {file.filename}
                 </div>
               </div>
             </div>
@@ -58,18 +61,18 @@ export default async function FilePage({ params }: FilePageProps) {
               <div>
                 <div className="text-sm font-medium">Uploaded</div>
                 <div className="text-sm text-muted-foreground">
-                  {new Date(parsedFile.uploaded_at ?? '').toLocaleString()}
+                  {new Date(file.uploaded_at ?? '').toLocaleString()}
                 </div>
               </div>
             </div>
 
-            {parsedFile.file_size && (
+            {file.file_size && (
               <div className="flex items-start gap-3">
                 <HardDrive className="h-5 w-5 mt-0.5 text-muted-foreground" />
                 <div>
                   <div className="text-sm font-medium">File Size</div>
                   <div className="text-sm text-muted-foreground">
-                    {formatFileSize(parsedFile.file_size)}
+                    {formatFileSize(file.file_size)}
                   </div>
                 </div>
               </div>
@@ -84,7 +87,7 @@ export default async function FilePage({ params }: FilePageProps) {
             <div className="rounded-lg border bg-card p-4">
               <div className="text-sm font-medium mb-2">File ID</div>
               <code className="text-xs text-muted-foreground">
-                {parsedFile.uuid}
+                {file.uuid}
               </code>
             </div>
           </div>
@@ -97,27 +100,27 @@ export default async function FilePage({ params }: FilePageProps) {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">3D Model Viewer</h2>
-          <StatusBadge status={parsedFile.status} />
+          <StatusBadge status={file.status} />
         </div>
         
-        {parsedFile.status === 'processed' && parsedFile.render_blob_url ? (
+        {file.status === 'processed' && file.render_blob_url ? (
           <div className="rounded-lg border overflow-hidden">
-            <ModelViewerWrapper uuid={parsedFile.uuid} metadata={parsedFile.metadata_json} />
+            <ModelViewerWrapper uuid={file.uuid} metadata={file.metadata_json} />
           </div>
-        ) : parsedFile.status === 'processing' ? (
+        ) : file.status === 'processing' ? (
           <div className="rounded-lg border bg-muted/50 p-12 flex items-center justify-center">
             <div className="text-center">
               <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
               <p className="text-sm text-muted-foreground">Converting STEP file to 3D web model...</p>
             </div>
           </div>
-        ) : parsedFile.status === 'failed' ? (
+        ) : file.status === 'failed' ? (
           <div className="rounded-lg border border-destructive bg-destructive/10 p-12 flex items-center justify-center">
             <div className="text-center">
               <XCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
               <p className="text-sm font-medium text-destructive mb-2">Conversion Failed</p>
-              {parsedFile.error_message && (
-                <p className="text-xs text-muted-foreground">{parsedFile.error_message}</p>
+              {file.error_message && (
+                <p className="text-xs text-muted-foreground">{file.error_message}</p>
               )}
             </div>
           </div>
@@ -132,7 +135,7 @@ export default async function FilePage({ params }: FilePageProps) {
       </div>
 
       {/* Metadata Section */}
-      {parsedFile.metadata_json && (
+      {file.metadata_json && (
         <>
           <Separator />
           <div className="space-y-4">
@@ -141,15 +144,15 @@ export default async function FilePage({ params }: FilePageProps) {
               <div className="grid gap-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Components:</span>
-                  <span className="font-medium">{parsedFile.metadata_json.nodes?.length || 0}</span>
+                  <span className="font-medium">{file.metadata_json.nodes?.length || 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Meshes:</span>
-                  <span className="font-medium">{parsedFile.metadata_json.meshes_count || 0}</span>
+                  <span className="font-medium">{file.metadata_json.meshes_count || 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Materials:</span>
-                  <span className="font-medium">{parsedFile.metadata_json.materials_count || 0}</span>
+                  <span className="font-medium">{file.metadata_json.materials_count || 0}</span>
                 </div>
               </div>
             </div>
@@ -164,7 +167,7 @@ export default async function FilePage({ params }: FilePageProps) {
         <h2 className="text-xl font-semibold">Raw Data</h2>
         <div className="rounded-lg border bg-muted/50 p-4">
           <pre className="text-xs overflow-auto">
-            {JSON.stringify(parsedFile, null, 2)}
+            {JSON.stringify(file, null, 2)}
           </pre>
         </div>
       </div>

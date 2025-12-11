@@ -5,6 +5,7 @@ import { useDropzone } from 'react-dropzone';
 import { StepUpload, PresignedUrl, presignedUrlSchema, stepUploadFinishedResponseSchema, StepUploadFinishedResponse } from '@/app/lib/schemas/step';
 import { useRouter } from 'next/navigation';
 import { getApiUrl } from '@/lib/api-config';
+import { fetchAndValidate } from '@/lib/utils';
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -43,7 +44,7 @@ export default function UploadPage() {
         size: file.size,
       };
 
-      const response = await fetch(getApiUrl('api/v1/upload/presigned-url'), {
+      const presignedUrlResult = await fetchAndValidate(getApiUrl('/api/v1/upload/presigned-url'), presignedUrlSchema, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -51,13 +52,13 @@ export default function UploadPage() {
         body: JSON.stringify(uploadRequest),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to get upload URL');
+      if (!presignedUrlResult.success) {
+        throw new Error(presignedUrlResult.error);
       }
 
-      const presignedData: PresignedUrl = presignedUrlSchema.parse(await response.json());
+      const presignedData: PresignedUrl = presignedUrlResult.data;
 
-      // upload file
+      // upload file to S3 (S3 returns empty body on PUT, so we can't use fetchAndValidate)
       const uploadResponse = await fetch(presignedData.url, {
         method: 'PUT',
         body: file,
@@ -67,12 +68,12 @@ export default function UploadPage() {
       });
 
       if (!uploadResponse.ok) {
-        throw new Error('Failed to upload file');
+        throw new Error(`Upload failed with status: ${uploadResponse.status}`);
       }
 
       setUploadProgress(100);
 
-      const finishResponse = await fetch(getApiUrl('api/v1/upload/finished'), {
+      const finishResponseResult = await fetchAndValidate(getApiUrl('/api/v1/upload/finished'), stepUploadFinishedResponseSchema, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -80,11 +81,11 @@ export default function UploadPage() {
         body: JSON.stringify({ object_uuid: presignedData.object_uuid }),
       });
 
-      if (!finishResponse.ok) {
-        throw new Error('Failed to confirm upload');
+      if (!finishResponseResult.success) {
+        throw new Error(finishResponseResult.error);
       }
 
-      const finishData: StepUploadFinishedResponse = stepUploadFinishedResponseSchema.parse(await finishResponse.json());
+      const finishData: StepUploadFinishedResponse = finishResponseResult.data;
 
       setUploadedFileId(finishData.uuid);
       setFile(null);
