@@ -21,6 +21,13 @@ class StepFileResponse(BaseModel):
     uploaded_at: str | None = None
     processed_at: str | None = None
 
+class ProcessStatusUpdate(BaseModel):
+    uuid: str
+    status: str
+    task_id: str | None = None
+    task_status: str | None = None
+    task_info: dict | None = None
+
 class RenderDownloadUrlResponse(BaseModel):
     download_url: str
     expires_in: int

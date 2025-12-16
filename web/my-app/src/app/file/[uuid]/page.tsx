@@ -102,7 +102,7 @@ export default async function FilePage({ params }: FilePageProps) {
           <h2 className="text-xl font-semibold">3D Model Viewer</h2>
           <StatusBadge status={file.status} />
         </div>
-        
+        {/* HERE!! Use loading and status response  */}
         {file.status === 'processed' && file.render_blob_url ? (
           <div className="rounded-lg border overflow-hidden">
             <ModelViewerWrapper uuid={file.uuid} metadata={file.metadata_json} />
