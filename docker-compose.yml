@@ -1,33 +1,33 @@
 services:
-  # stepbackend:
-  #   platform: linux/amd64
-  #   build:
-  #     context: ./api
-  #     dockerfile: Dockerfile
-  #   container_name: stepbackend
-  #   env_file:
-  #     - .env.development
-  #   ports:
-  #     - "8000:8000"
-  #   depends_on:
-  #     - postgres
-  #     - blob
-  #   volumes:
-  #     - ./api/app:/app/app  # Optional: for development hot-reload
+  stepbackend:
+    platform: linux/amd64
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: stepbackend
+    env_file:
+      - .env.development
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - blob
+    extra_hosts:
+      - "localhost:host-gateway"  # Allow localhost to reach host machine (and thus MinIO via port mapping)
+    volumes:
+      - ./api/app:/app/app  # Optional: for development hot-reload
 
-  # stepfrontend:
-  #   build:
-  #     context: ./web/my-app
-  #     dockerfile: Dockerfile
-  #     args:
-  #       - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
-  #   container_name: stepfrontend
-  #   environment:
-  #     - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
-  #   ports:
-  #     - "3000:3000"
-  #   depends_on:
-  #     - stepbackend
+  stepfrontend:
+    build:
+      context: ./web/my-app
+      dockerfile: Dockerfile
+    container_name: stepfrontend
+    env_file:
+      - .env.development
+    ports:
+      - "3000:3000"
+    depends_on:
+      - stepbackend
 
   postgres:
     image: postgres:15-alpine
@@ -47,6 +47,7 @@ services:
       - .env.development
     environment:
       - MINIO_API_CORS_ALLOW_ORIGIN=*
+      - MINIO_SERVER_URL=http://localhost:9000
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -75,9 +76,9 @@ services:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/steprender
       - REDIS_QUEUE_URL=redis://redis:6379/0
       - REDIS_DATA_URL=redis://redis:6379/1
-      - MINIO_ENDPOINT=blob:9000
-      - BLOB_STORAGE_ENDPOINT=blob:9000
       - MINIO_USE_SSL=false
+    extra_hosts:
+      - "localhost:host-gateway"
     depends_on:
       - postgres
       - blob

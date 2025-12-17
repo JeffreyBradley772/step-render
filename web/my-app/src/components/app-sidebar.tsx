@@ -1,3 +1,4 @@
+import { unstable_noStore as noStore } from "next/cache";
 import Link from "next/link";
 import { Home, Upload } from "lucide-react";
 import {
@@ -18,11 +19,12 @@ import { fetchAndValidate } from "@/lib/utils";
 import { getApiUrl } from "@/lib/api-config";
 
 export async function AppSidebar() {
-
-  const fileFetchResult = await fetchAndValidate(getApiUrl("/api/v1/files"), stepFileInfoResponseArraySchema);
-
+  // Opt out of static generation - fetch at request time
+  noStore();
+  
+  const url = getApiUrl("/api/v1/files");
+  const fileFetchResult = await fetchAndValidate(url, stepFileInfoResponseArraySchema);
   if (!fileFetchResult.success) {
-    console.error(fileFetchResult.error);
     return null;
   }
 
