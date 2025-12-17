@@ -72,6 +72,28 @@ sessionmanager = DatabaseSessionManager(
     settings.sql_database_url.replace("postgresql://", "postgresql+asyncpg://") # here: change in .env
 )
 
+## TODO: Remove this when reworking celery database access - use new celery async stuff
+def get_sync_database_url() -> str:
+    """
+    Get synchronous database URL for Celery tasks.
+    
+    Converts async URL (postgresql+asyncpg://) to sync URL (postgresql://)
+    for use with psycopg2 driver in synchronous Celery workers.
+    """
+    async_url = settings.sql_database_url
+    
+    # Replace asyncpg driver with psycopg2 for sync operations
+    if "postgresql+asyncpg://" in async_url:
+        sync_url = async_url.replace("postgresql+asyncpg://", "postgresql://")
+    elif "postgresql://" in async_url:
+        # Already sync URL, return as-is
+        sync_url = async_url
+    else:
+        # Fallback: assume it needs postgresql:// prefix
+        sync_url = async_url
+    
+    return sync_url
+
 
 async def get_db_session():
     """Dependency to get database session"""

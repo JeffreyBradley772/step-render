@@ -1,9 +1,11 @@
 
 from fastapi import APIRouter, HTTPException
-from app.schemas import StepFileResponse, RenderDownloadUrlResponse, DeleteFileResponse
+from app.schemas import StepFileResponse, RenderDownloadUrlResponse, DeleteFileResponse, ProcessStatusUpdate
 from app.models.step import StepFile
 from app.dependencies.core import DBSessionDep, RenderBlobClient, StepFileBlobClient
 from sqlalchemy import select
+from app.cache.redis_client import FileStatusCache
+from app.celery_app import celery_app
 
 router = APIRouter(
     prefix="/files",
@@ -49,6 +51,48 @@ async def get_file(uuid: str, db: DBSessionDep):
         status=file.status.value,  # Convert enum to string
         uploaded_at=file.uploaded_at.isoformat() if file.uploaded_at else None,
         processed_at=file.processed_at.isoformat() if file.processed_at else None,
+    )
+
+@router.get("/{uuid}/status", response_model=ProcessStatusUpdate)
+async def get_file_status(
+    uuid: str,
+    db: DBSessionDep,
+):
+    """Get file processing status from Redis."""
+    # Check cache
+    cached_status = FileStatusCache.get_status(uuid)
+    if cached_status:
+        task_id = cached_status.task_id
+        task_status = None
+        task_info = cached_status.metadata.model_dump() if cached_status.metadata else None
+        
+        # Get live task info if task_id exists
+        if task_id:
+            task = celery_app.AsyncResult(task_id)
+            task_status = task.state
+            if task.info:
+                task_info = task.info
+    
+        return ProcessStatusUpdate(
+            uuid=uuid,
+            status=cached_status.status.value,  
+            task_id=task_id,
+            task_status=task_status,
+            task_info=task_info,
+        )
+    
+    # Check database
+    result = await db.execute(select(StepFile).where(StepFile.uuid == uuid))
+    file = result.scalar_one_or_none()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    return ProcessStatusUpdate(
+        uuid=file.uuid,
+        status=file.status.value, 
+        task_id=None,
+        task_status=None,
+        task_info=None,
     )
 
 @router.get("/{uuid}/render-download-url", response_model=RenderDownloadUrlResponse)

@@ -54,7 +54,8 @@ class MinioBlobStorageClient(BlobStorageClient):
         """Get the public/accessible URL for an object"""
         bucket = bucket_name or self._default_bucket
         protocol = "https" if self._secure else "http"
-        return f"{protocol}://{self._endpoint}/{bucket}/{object_uuid}"
+        url = f"{protocol}://{self._endpoint}/{bucket}/{object_uuid}"
+        return url
     
     def delete_file(
         self,

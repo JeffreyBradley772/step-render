@@ -1,15 +1,15 @@
 import uuid
 import logging
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 from datetime import datetime, timezone
 from pydantic import BaseModel
 
 from app.schemas import PresignedUrl, UploadRequest, UploadFinishedResponse
-from app.storage.storage_interface import BlobStorageClient
 from app.dependencies.core import DBSessionDep, StepFileBlobClient 
 from app.models.step import StepFile, UploadStatus
-from app.services.render import process_render_task
+from app.services.render import process_render_task_sync 
+from app.cache.redis_client import FileStatusCache
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,6 @@ async def get_presigned_upload_url(
 @router.post("/finished", response_model=UploadFinishedResponse)
 async def upload_finished(
     request: UploadFinishedRequest,
-    background_tasks: BackgroundTasks,
     database: DBSessionDep,
     step_file_blob_client: StepFileBlobClient
 ):
@@ -67,8 +66,17 @@ async def upload_finished(
     
     await database.commit()
     
-    # start rendering task
-    background_tasks.add_task(process_render_task, request.object_uuid)
+    # Dispatch Celery task for rendering
+    task = process_render_task_sync.delay(request.object_uuid)
+    logger.info(f"Dispatched render task {task.id} for file {request.object_uuid}")
+
+    # Cache initial status with task ID
+    FileStatusCache.set_status(
+        request.object_uuid, 
+        "uploaded",
+        task.id,
+        {"message": "Queued for processing"}
+    )
     
     return UploadFinishedResponse(
         status="success",

@@ -47,12 +47,22 @@ export const stepFileInfoResponseSchema = z.object({
     processed_at: z.string().nullable(),
 })
 
+// Step file status info response 
+export const processStatusUpdateSchema = z.object({
+    uuid: z.string(),
+    status: z.string(),
+    task_id: z.string().nullable(),
+    task_status: z.string().nullable(),
+    task_info: z.record(z.string(), z.any()).nullable(),
+});
+
 export const stepFileInfoResponseArraySchema = z.array(stepFileInfoResponseSchema);
 
 // upload types
 export type StepUpload = z.infer<typeof stepUploadSchema>;
 export type StepUploadFinished = z.infer<typeof stepUploadFinishedSchema>;
 export type StepFileInfoResponse = z.infer<typeof stepFileInfoResponseSchema>;
+export type ProcessStatusUpdate = z.infer<typeof processStatusUpdateSchema>;
 
 // GLTF metadata types
 export type GltfNodeMetadata = z.infer<typeof gltfNodeMetadataSchema>;
