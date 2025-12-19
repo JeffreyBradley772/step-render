@@ -24,7 +24,6 @@ class StepFile(Base):
     file_size: Mapped[Optional[str]]  # in bytes
     
     blob_url: Mapped[Optional[str]]  # URL to access the uploaded STEP file
-    render_blob_url: Mapped[Optional[str]]  # URL of the rendered glTF/GLB asset
     metadata_json: Mapped[Optional[dict]] = mapped_column(JSON)  # component hierarchy / metadata
     error_message: Mapped[Optional[str]]  # potential error message
 

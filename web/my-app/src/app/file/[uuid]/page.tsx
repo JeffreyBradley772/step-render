@@ -103,7 +103,7 @@ export default async function FilePage({ params }: FilePageProps) {
           <StatusBadge status={file.status} />
         </div>
         {/* HERE!! Use loading and status response  */}
-        {file.status === 'processed' && file.render_blob_url ? (
+        {file.status === 'processed' ? (
           <div className="rounded-lg border overflow-hidden">
             <ModelViewerWrapper uuid={file.uuid} metadata={file.metadata_json} />
           </div>

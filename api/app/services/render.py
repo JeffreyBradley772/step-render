@@ -65,7 +65,7 @@ def extract_gltf_metadata(glb_path: str) -> Dict[str, Any]:
         return {"error": str(e), "nodes": []}
 
 
-def render_step_file(step_file_uuid: str, output_uuid: str) -> tuple[str, Optional[Dict[str, Any]]]:
+def render_step_file(step_file_uuid: str, output_uuid: str) -> Optional[Dict[str, Any]]:
     """
     Convert a STEP file to GLB format and store in render bucket.
     
@@ -74,14 +74,14 @@ def render_step_file(step_file_uuid: str, output_uuid: str) -> tuple[str, Option
     2. Convert STEP to GLB using cascadio (OpenCASCADE)
     3. Extract component metadata for highlighting
     4. Upload GLB to render bucket
-    5. Return render URL and metadata
+    5. Return metadata
     
     Args:
         step_file_uuid: UUID of the STEP file to convert
         output_uuid: UUID for the rendered GLB output
         
     Returns:
-        Tuple of (rendered_url, metadata_dict)
+        metadata_dict
     """
     step_storage: BlobStorageClient = get_step_file_storage()
     render_storage: BlobStorageClient = get_render_storage()
@@ -118,59 +118,13 @@ def render_step_file(step_file_uuid: str, output_uuid: str) -> tuple[str, Option
                 response = requests.put(upload_info.url, data=glb_file)
                 response.raise_for_status()
             
-            # Step 5: Get final URL
-            rendered_url = render_storage.get_object_url(output_uuid)
-            logger.info(f"Successfully rendered {step_file_uuid} to {rendered_url}")
+            logger.info(f"Successfully rendered {step_file_uuid}")
             
-            return rendered_url, metadata
+            return metadata
             
         except Exception as e:
             logger.error(f"Error rendering STEP file {step_file_uuid}: {e}")
             raise
-
-
-# @celery_app.task(bind=True, name="app.services.render.process_render_task")
-# async def process_render_task(file_uuid: str):
-#     """Background task to render STEP file to GLB"""
-#     async with sessionmanager.session() as db:
-#         try:
-#             # Update status to PROCESSING
-#             result = await db.execute(
-#                 select(StepFile).where(StepFile.uuid == file_uuid)
-#             )
-#             step_file = result.scalar_one_or_none()
-#             if not step_file:
-#                 logger.error(f"File {file_uuid} not found for rendering")
-#                 return
-            
-#             step_file.status = UploadStatus.PROCESSING
-#             await db.commit()
-            
-#             # do rendering - use same UUID as step file for simplicity
-#             logger.info(f"Starting render for {file_uuid}")
-            
-#             rendered_url, metadata = await render_step_file(file_uuid, file_uuid)
-            
-#             # update database row
-#             step_file.status = UploadStatus.PROCESSED
-#             step_file.render_blob_url = rendered_url
-#             step_file.metadata_json = metadata
-#             step_file.processed_at = datetime.now(timezone.utc)
-#             await db.commit()
-            
-#             logger.info(f"Finished rendering {file_uuid}")
-            
-#         except Exception as e:
-#             logger.error(f"Error rendering file {file_uuid}: {e}")
-#             # set status to FAILED
-#             result = await db.execute(
-#                 select(StepFile).where(StepFile.uuid == file_uuid)
-#             )
-#             step_file = result.scalar_one_or_none()
-#             if step_file:
-#                 step_file.status = UploadStatus.FAILED
-#                 step_file.error_message = str(e)
-#                 await db.commit()
 
 @celery_app.task(bind=True, name="app.services.render.process_render_task_sync")
 def process_render_task_sync(self, file_uuid: str):
@@ -222,14 +176,13 @@ def process_render_task_sync(self, file_uuid: str):
 
             # Do rendering (blocking operation)
             FileStatusCache.update_progress(file_uuid, 30, "Converting to GLB format")
-            rendered_url, metadata = render_step_file(file_uuid, file_uuid)
+            metadata = render_step_file(file_uuid, file_uuid)
 
             # Update progress - uploading
             FileStatusCache.update_progress(file_uuid, 80, "Uploading rendered model")
 
             # Update database with results
             step_file.status = UploadStatus.PROCESSED
-            step_file.render_blob_url = rendered_url
             step_file.metadata_json = metadata
             step_file.processed_at = datetime.now(timezone.utc)
             session.commit()
@@ -241,8 +194,7 @@ def process_render_task_sync(self, file_uuid: str):
                 self.request.id,
                 TaskMetadata(
                     progress=100,
-                    message="Conversion complete",
-                    render_url=rendered_url
+                    message="Conversion complete"
                 )
             )
             
@@ -251,7 +203,6 @@ def process_render_task_sync(self, file_uuid: str):
             return {
                 "status": "success",
                 "file_uuid": file_uuid,
-                "render_url": rendered_url,
                 "metadata": metadata
             }
 
@@ -273,3 +224,46 @@ def process_render_task_sync(self, file_uuid: str):
             )
             
             raise
+    
+    # @celery_app.task(bind=True, name="app.services.render.process_render_task")
+    # async def process_render_task(file_uuid: str):
+    #     """Background task to render STEP file to GLB"""
+    #     async with sessionmanager.session() as db:
+    #         try:
+    #             # Update status to PROCESSING
+    #             result = await db.execute(
+    #                 select(StepFile).where(StepFile.uuid == file_uuid)
+    #             )
+    #             step_file = result.scalar_one_or_none()
+    #             if not step_file:
+    #                 logger.error(f"File {file_uuid} not found for rendering")
+    #                 return
+                
+    #             step_file.status = UploadStatus.PROCESSING
+    #             await db.commit()
+                
+    #             # do rendering - use same UUID as step file for simplicity
+    #             logger.info(f"Starting render for {file_uuid}")
+                
+    #             rendered_url, metadata = await render_step_file(file_uuid, file_uuid)
+                
+    #             # update database row
+    #             step_file.status = UploadStatus.PROCESSED
+    #             step_file.render_blob_url = rendered_url
+    #             step_file.metadata_json = metadata
+    #             step_file.processed_at = datetime.now(timezone.utc)
+    #             await db.commit()
+                
+    #             logger.info(f"Finished rendering {file_uuid}")
+                
+    #         except Exception as e:
+    #             logger.error(f"Error rendering file {file_uuid}: {e}")
+    #             # set status to FAILED
+    #             result = await db.execute(
+    #                 select(StepFile).where(StepFile.uuid == file_uuid)
+    #             )
+    #             step_file = result.scalar_one_or_none()
+    #             if step_file:
+    #                 step_file.status = UploadStatus.FAILED
+    #                 step_file.error_message = str(e)
+    #                 await db.commit()

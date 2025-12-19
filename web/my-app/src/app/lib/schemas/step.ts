@@ -39,7 +39,6 @@ export const stepFileInfoResponseSchema = z.object({
     filename: z.string(),
     file_size: z.number().nullable(),
     blob_url: z.string().nullable(),
-    render_blob_url: z.string().nullable(),
     metadata_json: gltfMetadataSchema.nullable(),
     error_message: z.string().nullable(),
     status: z.string(),

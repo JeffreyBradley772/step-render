@@ -14,7 +14,6 @@ class StepFileResponse(BaseModel):
     filename: str
     file_size: int | None = None
     blob_url: str | None = None
-    render_blob_url: str | None = None
     metadata_json: dict | None = None
     error_message: str | None = None
     status: str

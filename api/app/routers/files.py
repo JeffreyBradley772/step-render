@@ -23,7 +23,6 @@ async def get_files(db: DBSessionDep):
             filename=file.filename,
             file_size=file.file_size,
             blob_url=file.blob_url,
-            render_blob_url=file.render_blob_url,
             metadata_json=file.metadata_json,
             error_message=file.error_message,
             status=file.status.value,  # Convert enum to string
@@ -45,7 +44,6 @@ async def get_file(uuid: str, db: DBSessionDep):
         filename=file.filename,
         file_size=file.file_size,
         blob_url=file.blob_url,
-        render_blob_url=file.render_blob_url,
         metadata_json=file.metadata_json,
         error_message=file.error_message,
         status=file.status.value,  # Convert enum to string
@@ -107,7 +105,7 @@ async def get_render_download_url(
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
     
-    if not file.render_blob_url:
+    if file.status.value != 'processed':
         raise HTTPException(status_code=404, detail="Rendered file not available yet")
     
     # Use step file UUID directly (render file uses same UUID)
@@ -130,8 +128,7 @@ async def delete_file(
 
         step_file_storage.delete_file(file.uuid)
         # delete rendered GLB file too if it exists
-
-        if file.render_blob_url:
+        if file.status.value == 'processed':
             render_storage.delete_file(file.uuid)
 
         await db.delete(file)

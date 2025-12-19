@@ -83,4 +83,3 @@ async def upload_finished(
         uuid=request.object_uuid,
         file_status=step_file.status
     )
-    

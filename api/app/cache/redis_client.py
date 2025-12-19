@@ -8,7 +8,6 @@ from datetime import timedelta
 REDIS_DATA_URL = os.getenv("REDIS_DATA_URL", "redis://localhost:6379/0")
 
 redis_client = redis.from_url(REDIS_DATA_URL, decode_responses=True)
-# why use cls here and not self???
 
 class FileStatusCache:
 
